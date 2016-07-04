@@ -8,6 +8,8 @@
 #include "lighting_percolation.h"
 #include "pmd.h"
 
+
+bool isDark = 0;
 #define I_no 4
 #if I_no == 1
 int	IMG_WIDTH = (392);
@@ -26,7 +28,7 @@ int	IMG_HEIGHT = (220);
 #elif I_no == 4
 int	IMG_WIDTH = (659);
 int	IMG_HEIGHT = (494);
-#define filename "No.01.pgm"
+#define filename "No.03_linear.pgm"
 #endif
 
 /************************/
@@ -357,9 +359,9 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 	memset(Gi, 0, sizeof(PERCOLATION_REGION_t)*N_LEVEL);
 
 	/*	‹­“xbright‚Ì’l‚Ì‰æ‘f‚ð‚·‚×‚ÄŽæ‚Á‚Ä‚­‚é	*/
-	for (bright = 0; bright<512; bright++) {
-		for (y = 0; y<IMG_HEIGHT; y++) {
-			for (x = 0; x<IMG_WIDTH; x++) {
+	for (bright = 0; bright<256; bright++) {
+		for (y = 4; y<IMG_HEIGHT; y++) {
+			for (x = 4; x<IMG_WIDTH; x++) {
 				if (pTempImg[y*IMG_WIDTH + x] == bright) {
 					point.x = x;
 					point.y = y;
@@ -422,7 +424,7 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 	/****************************/
 	/*	Step4.illumCompensate	*/
 	/****************************/
-	double calSum = 0;
+	double sumOfEq = 0;
 #if 0
 	L = 7 * N / 8;
 	for (L = 0; L <= N; L++) {
@@ -460,9 +462,9 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 		for (Geo_Level = 0; Geo_Level <= N; Geo_Level++) {
 			for (level_sum = 0; level_sum<Gi->NUMBER[Geo_Level].GiPoint.size(); level_sum++) {
 				if (Geo_Level <= L) {
-					calSum = alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda;
-					if (calSum >= 255) {
-						calSum = 255;
+					sumOfEq = alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda;
+					if (sumOfEq >= 255) {
+						sumOfEq = 255;
 					}
 					pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] = alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda;
 				}
@@ -502,7 +504,9 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 		B_count = 0;
 		for (Geo_Level = L+1; Geo_Level <= N; Geo_Level++) {
 			for (level_sum = 0; level_sum < Gi->NUMBER[Geo_Level].sum; level_sum++) {
+				// Old Algorithm use Standard Deviation
 				//Db += pow(pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] - Ib, 2);
+				//	New one use Mean Absolute Deviation
 				Db += abs(pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] - Ib);
 				B_count++;
 			}
@@ -510,29 +514,37 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 		Db = Db / B_count;
 
 		for (Geo_Level = L + 1; Geo_Level <= N; Geo_Level++) {
+			Is = Gi->NUMBER[Geo_Level].ave;
 			for (level_sum = 0; level_sum < Gi->NUMBER[Geo_Level].sum; level_sum++) {
-				Is = Gi->NUMBER[Geo_Level].ave;
-				Ds += abs(pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] - Is);
-				S_count++;
+					Ds += abs(pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] - Is);
+					S_count++;
 			}
 		}
 		Ds = Ds / S_count;
-		//Db = sqrt(Db / B_count);
+		
+		//Db = sqrt(Db / B_count); // Old Algorithm use Standard Deviation
 		LIGHTING_UINT32 Geo_Level_S = 0;
 		for (Geo_Level = 0; Geo_Level <= N; Geo_Level++) {
 			for (level_sum = 0; level_sum < Gi->NUMBER[Geo_Level].sum; level_sum++) {
 				if (Geo_Level <= L) {
 					Is = Gi->NUMBER[Geo_Level].ave;
-					//Ds = sqrt(Gi->NUMBER[Geo_Level].var);
-					alpha = Db / Ds;
+					//Ds = sqrt(Gi->NUMBER[Geo_Level].var);	// Old Algorithm use Standard Deviation
+					if(isDark == 0){
+						Ds = (Ds*0.9991 + sqrt(Gi->NUMBER[Geo_Level].var)*0.0009);
+						alpha = Db / Ds;
+					}
+					else{ 
+						alpha = Db / Ds * 0.5; 
+					}
+					
 					lambda = Ib - alpha*Is;
-					calSum = alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda;
-					//if (calSum >= 255) {
-					//	calSum = 255;
-					//}
-					pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] = calSum;
+					sumOfEq = alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda;
+					if (sumOfEq >= 255) {
+						sumOfEq = 255;
+					}
+					pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] = ceil(sumOfEq);
 					//this is debug line, comment this line will reduce the process time
-					//fprintf(L_alpha, "L:%3d Geo_Level:%3d Iadd: %3.2lf Ireal: %3d y:%3d x:%3d\n", L, Geo_Level, alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda, pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x], Gi->NUMBER[Geo_Level].GiPoint[level_sum].y, Gi->NUMBER[Geo_Level].GiPoint[level_sum].x);
+					//fprintf(L_alpha, "L:%3d Geo_Level:%3d Iadd: %3.2lf Ireal: %3d y:%3d x:%3d Is:%3.2lf Ib:%3.2lf \n", L, Geo_Level, sumOfEq, pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x], Gi->NUMBER[Geo_Level].GiPoint[level_sum].y, Gi->NUMBER[Geo_Level].GiPoint[level_sum].x, Is, Ib);
 					//
 				}
 				else {
