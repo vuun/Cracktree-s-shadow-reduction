@@ -10,31 +10,31 @@
 
 
 bool isDark = 0;
-#define I_no 2
+#define I_no 5
 
 #if I_no == 1
-int	IMG_WIDTH = (800);
-int	IMG_HEIGHT = (600);
+LIGHTING_UINT32	IMG_WIDTH = (800);
+LIGHTING_UINT32	IMG_HEIGHT = (600);
 #define filename "dark_shadow_800x600.pgm"
 #elif I_no == 2
-int	IMG_WIDTH = (320);
-int	IMG_HEIGHT = (220);
+LIGHTING_UINT32	IMG_WIDTH = (320);
+LIGHTING_UINT32	IMG_HEIGHT = (220);
 #define filename "dlight_shadow_320x220.pgm"
 
 #elif I_no == 3
-int	IMG_WIDTH = (320);
-int	IMG_HEIGHT = (220);
+LIGHTING_UINT32	IMG_WIDTH = (320);
+LIGHTING_UINT32	IMG_HEIGHT = (220);
 #define filename "dark_shadow_320x220.pgm"
 
 #elif I_no == 4
-int	IMG_WIDTH = (659);
-int	IMG_HEIGHT = (494);
+LIGHTING_UINT32	IMG_WIDTH = (659);
+LIGHTING_UINT32	IMG_HEIGHT = (494);
 #define filename "No.03_linear.pgm"
 
 #elif I_no == 5
-int	IMG_WIDTH = (659);
-int	IMG_HEIGHT = (494);
-#define filename "No.01.pgm"
+LIGHTING_UINT32	IMG_WIDTH = (392);
+LIGHTING_UINT32	IMG_HEIGHT = (190);
+#define filename "dark_shadow_392x190.pgm"
 #endif
 
 /************************/
@@ -123,10 +123,8 @@ void main() {
 
 	sprintf(frname, filename);
 	read_pgm_file(readImg, IMG_WIDTH, IMG_HEIGHT, frname);
-#if 0
-	sprintf(frname, "No.03_3_gauss10.pgm");
-	read_pgm_file(gauSmoothImg, IMG_WIDTH, IMG_HEIGHT, frname);
-#else	
+
+#if 1	
 	retVal = mmClose(readImg, mmCloseImg);
 	time(&Time);
 	Now = localtime(&Time);
@@ -138,7 +136,9 @@ void main() {
 	Now = localtime(&Time);
 	sprintf(fwname, "output\\%4d_%2d_%2d_%2d_%2d_%2d_02gauSmooth_%s", 1900 + Now->tm_year, Now->tm_mon + 1, Now->tm_mday, Now->tm_hour, Now->tm_min, Now->tm_sec, filename);
 	write_pgm_file(gauSmoothImg, IMG_WIDTH, IMG_HEIGHT, fwname);
-
+#else
+	sprintf(frname, "No.03_3_gauss10.pgm");
+	read_pgm_file(gauSmoothImg, IMG_WIDTH, IMG_HEIGHT, frname);
 #endif
 	retVal = geoLevel(readImg, gauSmoothImg, geoLevelImg);
 
@@ -155,12 +155,12 @@ void main() {
 /********************/
 LIGHTING_ERROR_t mmClose(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pOutImg) {
 	LIGHTING_ERROR_t retVal = LIGHTING_OK;
-	LIGHTING_INT32 x, y, dx, dy, max = 255, min = 0;
+	LIGHTING_UINT32 x, y;
+	LIGHTING_INT32  dx, dy, max = 255, min = 0;
 	LIGHTING_UINT8* rTmpImg = LIGHTING_NULL;
 	LIGHTING_UINT8* cTmpImg = LIGHTING_NULL;
 
-	LIGHTING_INT32 xmin = MAX_VALUE8, xmax = MIN_VALUE, ymin, ymax, times, max_times = 2;
-	double a, b;
+	LIGHTING_INT32 xmin = MAX_VALUE8, xmax = MIN_VALUE, times, max_times = 2;
 
 #define MASK_SIZE 7
 #if MASK_SIZE==7
@@ -275,7 +275,8 @@ LIGHTING_ERROR_t mmClose(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pOutImg) {
 LIGHTING_ERROR_t gauSmooth(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pOutImg) {
 #define FIL_SIZE 7
 	LIGHTING_ERROR_t retVal = LIGHTING_OK;
-	LIGHTING_INT32 x = 0, y = 0, fil_x = 0, fil_y = 0, fil_count = 0;
+	LIGHTING_UINT32 x = 0, y = 0;
+	LIGHTING_INT32  fil_x = 0, fil_y = 0, fil_count = 0;
 	double fil_val[FIL_SIZE*FIL_SIZE], fil_sigma = 10.0, fil_sum = 0;
 
 	for (fil_y = -FIL_SIZE / 2; fil_y <= FIL_SIZE / 2; fil_y++) {
@@ -335,8 +336,8 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 
 	PERCOLATION_REGION_t* Gi = LIGHTING_NULL;
 	LIGHTING_POINT_t point;
-	LIGHTING_UINT32 level_sum = 0, Geo_Level = 0, level_sum_s = 0, Geo_Level_s = 0;
-	LIGHTING_UINT32 bright, x, y, N = N_LEVEL, L, S_count = 0, B_count = 0, L_Max = 0;
+	LIGHTING_UINT32 level_sum = 0, Geo_Level = 0, level_sum_s = 0, x, y, N = N_LEVEL, L;
+	LIGHTING_INT32 bright, S_count = 0, B_count = 0, L_Max = 0;
 	LIGHTING_UINT32 Ng = (IMG_WIDTH*IMG_HEIGHT) / N ;
 	double Is = 0, Ib = 0, Ds = 0, Db = 0, alpha, lambda, var_max = 0;
 
@@ -365,9 +366,9 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 	memset(Gi, 0, sizeof(PERCOLATION_REGION_t)*N_LEVEL);
 
 	/*	‹­“xbright‚Ì’l‚Ì‰æ‘f‚ð‚·‚×‚ÄŽæ‚Á‚Ä‚­‚é	*/
-	for (bright = 0; bright<512; bright++) {
+	for (bright = 0; bright<256; bright++) {
 		for (y = 0; y<IMG_HEIGHT; y++) {
-			for (x = 4; x<IMG_WIDTH; x++) {
+			for (x = 6; x<IMG_WIDTH; x++) {
 				if (pTempImg[y*IMG_WIDTH + x] == bright) {
 					point.x = x;
 					point.y = y;
@@ -430,7 +431,6 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 	/****************************/
 	/*	Step4.illumCompensate	*/
 	/****************************/
-	double sumOfEq = 0;
 #if 0
 	L = 7 * N / 8;
 	for (L = 0; L <= N; L++) {
@@ -497,6 +497,7 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 	}
 
 #else
+	double sumOfEq = 0;
 	L = 7 * N / 8;
 	for (L = 0; L <= N; L++) {
 		for (Geo_Level = L+1; Geo_Level <= N; Geo_Level++) {
@@ -529,25 +530,20 @@ LIGHTING_ERROR_t geoLevel(LIGHTING_UINT8* pInImg, LIGHTING_UINT8* pTempImg, LIGH
 		Ds = Ds / S_count;
 		
 		//Db = sqrt(Db / B_count); // Old Algorithm use Standard Deviation
-		LIGHTING_UINT32 Geo_Level_S = 0;
 		for (Geo_Level = 0; Geo_Level <= N; Geo_Level++) {
 			for (level_sum = 0; level_sum < Gi->NUMBER[Geo_Level].sum; level_sum++) {
 				if (Geo_Level <= L) {
 					Is = Gi->NUMBER[Geo_Level].ave;
 					//Ds = sqrt(Gi->NUMBER[Geo_Level].var);	// Old Algorithm use Standard Deviation
 					if(isDark == 0){
-						Ds = (Ds*0.9991 + sqrt(Gi->NUMBER[Geo_Level].var)*0.0009);
-						alpha = Db / Ds;
+						Ds = (Ds*0.9991 + sqrt(Gi->NUMBER[Geo_Level].var)*0.0009); //Ds is now mix of SD + MAD
 					}
-					else{ 
-						alpha = Db / Ds * 0.5; 
-					}
-					
+					alpha = Db / Ds;
 					lambda = Ib - alpha*Is;
 					sumOfEq = alpha*pInImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] + lambda;
-					//if (sumOfEq >= 255) {
-						//sumOfEq = 255;
-					//}
+					if (sumOfEq >= 255) {
+						sumOfEq = 255.0; // fix black dots ?
+					}
 					pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x] = ceil(sumOfEq);
 					//this is debug line, comment this line will reduce the process time
 					//fprintf(L_alpha, "L:%3d Geo_Level:%3d Iadd: %3.2lf Ireal: %3d y:%3d x:%3d Is:%3.2lf Ib:%3.2lf \n", L, Geo_Level, sumOfEq, pOutImg[Gi->NUMBER[Geo_Level].GiPoint[level_sum].y*IMG_WIDTH + Gi->NUMBER[Geo_Level].GiPoint[level_sum].x], Gi->NUMBER[Geo_Level].GiPoint[level_sum].y, Gi->NUMBER[Geo_Level].GiPoint[level_sum].x, Is, Ib);
